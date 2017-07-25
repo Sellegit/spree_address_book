@@ -26,7 +26,7 @@ module Spree
           def show
           end
 
-          def udpate
+          def update
             if @address.editable?
               @address.update_attributes(address_params)
               respond_with(@address)
@@ -95,7 +95,7 @@ module Spree
                   lastname = nil
                 when 1
                   # unfortunate, so we need to improvise
-                  firstname = name
+                  firstname = fullname
                   lastname = 'Customer'
                 else
                   firstname = splits.first
