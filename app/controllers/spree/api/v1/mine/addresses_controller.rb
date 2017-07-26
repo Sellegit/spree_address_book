@@ -43,8 +43,7 @@ module Spree
           def destroy
             @address.destroy
             ensure_default_address
-            @addresses = current_api_user.addresses
-            respond_with(@addresses, default_template: :index)
+            respond_with(@addresses, status: 204)
           end
 
           # TODO: separate from #update
