@@ -14,7 +14,7 @@ module Spree
               @address.user = current_api_user
               @address.save!
             end
-            ensure_default_address(@address, params[:address][:default_for_shipping])
+            ensure_default_address(@address, default_params[:default_for_shipping])
             respond_with(@address, status: 201, default_template: :show)
           end
 
@@ -29,32 +29,26 @@ module Spree
           def update
             if @address.editable?
               @address.update_attributes(address_params)
-              respond_with(@address)
             else
               new_address = @address.clone
               new_address.attributes = address_params
               @address.update_attribute(:deleted_at, Time.now)
               new_address.save
-              ensure_default_address
-              respond_with(@new_address)
+              @address = new_address
             end
+            toggle_default
+            respond_with(@address, default_template: :show)
           end
 
           def destroy
             @address.destroy
             ensure_default_address
-            respond_with(@addresses, status: 204)
+            @addresses = current_api_user.addresses
+            respond_with(@addresses, status: 200, default_template: :index)
           end
 
-          # TODO: separate from #update
           def set_default
-            if params[:default_for_shipping]
-              current_api_user.shipping_address = @address
-            end
-            if params[:default_for_billing]
-              current_api_user.billing_address = @address
-            end
-            current_api_user.save
+            toggle_default
             respond_with(@address, default_template: :show) 
           end
 
@@ -66,6 +60,20 @@ module Spree
           end
 
           private
+          def toggle_default
+            if default_params[:default_for_shipping]
+              current_api_user.shipping_address = @address
+            elsif current_api_user.ship_address_id == @address.id
+              current_api_user.shipping_address = nil
+            end
+            if default_params[:default_for_billing]
+              current_api_user.billing_address = @address
+            elsif current_api_user.bill_address_id == @address.id
+              current_api_user.billing_address = nil
+            end
+            current_api_user.save!
+          end
+
           def ensure_default_address(address = nil, force = false)
             current_api_user.reload
             address ||= current_api_user.addresses.order('created_at desc').first
@@ -80,6 +88,10 @@ module Spree
 
           def find_address
             @address ||= current_api_user ? current_api_user.addresses.find(params[:id]) : nil
+          end
+
+          def default_params
+            params.require(:address).permit(:default_for_shipping, :default_for_billing)
           end
 
           def address_params
