@@ -14,7 +14,8 @@ module Spree
               @address.user = current_api_user
               @address.save!
             end
-            ensure_default_address
+            default_address = params[:address][:default_for_shipping] ? @address : nil
+            ensure_default_address(default_address, true)
             respond_with(@address, status: 201, default_template: :show)
           end
 
@@ -55,7 +56,7 @@ module Spree
               current_api_user.billing_address = @address
             end
             current_api_user.save
-            respond_with(@address, status: 201, default_template: :show) 
+            respond_with(@address, default_template: :show) 
           end
 
           # TODO: move to zone or country controller?
@@ -66,14 +67,14 @@ module Spree
           end
 
           private
-          def ensure_default_address
+          def ensure_default_address(address = nil, force = false)
             current_api_user.reload
-            newest_address = current_api_user.addresses.order('created_at DESC').first
-            if current_api_user.shipping_address.blank?
-              current_api_user.shipping_address = newest_address
+            address ||= current_api_user.addresses.order('created_at desc').first
+            if force || current_api_user.shipping_address.blank?
+              current_api_user.shipping_address = address
             end
-            if current_api_user.billing_address.blank?
-              current_api_user.billing_address = newest_address
+            if force || current_api_user.billing_address.blank?
+              current_api_user.billing_address = address
             end
             current_api_user.save!
           end
