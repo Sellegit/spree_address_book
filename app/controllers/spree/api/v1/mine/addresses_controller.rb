@@ -14,8 +14,7 @@ module Spree
               @address.user = current_api_user
               @address.save!
             end
-            default_address = params[:address][:default_for_shipping] ? @address : nil
-            ensure_default_address(default_address, true)
+            ensure_default_address(@address, params[:address][:default_for_shipping])
             respond_with(@address, status: 201, default_template: :show)
           end
 
