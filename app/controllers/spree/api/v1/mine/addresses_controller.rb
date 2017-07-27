@@ -29,15 +29,15 @@ module Spree
           def update
             if @address.editable?
               @address.update_attributes(address_params)
-              respond_with(@address)
             else
               new_address = @address.clone
               new_address.attributes = address_params
               @address.update_attribute(:deleted_at, Time.now)
               new_address.save
-              ensure_default_address
-              respond_with(@new_address)
+              @address = new_address
             end
+            toggle_default
+            respond_with(@address, default_template: :show)
           end
 
           def destroy
@@ -46,15 +46,8 @@ module Spree
             respond_with(@addresses, status: 204)
           end
 
-          # TODO: separate from #update
           def set_default
-            if params[:default_for_shipping]
-              current_api_user.shipping_address = @address
-            end
-            if params[:default_for_billing]
-              current_api_user.billing_address = @address
-            end
-            current_api_user.save
+            toggle_default
             respond_with(@address, default_template: :show) 
           end
 
@@ -66,6 +59,20 @@ module Spree
           end
 
           private
+          def toggle_default
+            if params[:default_for_shipping] || params[:address][:default_for_shipping]
+              current_api_user.shipping_address = @address
+            elsif current_api_user.ship_address_id == @address.id
+              current_api_user.shipping_address = nil
+            end
+            if params[:default_for_billing] || params[:address][:default_for_billing]
+              current_api_user.billing_address = @address
+            elsif current_api_user.bill_address_id == @address.id
+              current_api_user.billing_address = nil
+            end
+            current_api_user.save!
+          end
+
           def ensure_default_address(address = nil, force = false)
             current_api_user.reload
             address ||= current_api_user.addresses.order('created_at desc').first
